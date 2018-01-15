@@ -7,9 +7,9 @@ from numpy.random import randint as random_randint
 from numpy.random import shuffle as random_shuffle
 from numpy.random import rand
 
-input_filename = '/var/data/correct_en_snt.txt'
-output_correct_filename = '/tmp/correct_en_snt.txt'
-output_mistake_filename = '/tmp/mistakes_en_snt.txt'
+input_filename = '/var/data/test/correct_en_sample.x.txt'
+output_correct_filename = '/tmp/en.x.txt'
+output_mistake_filename = '/tmp/en.y.txt'
 
 # Parameters for the model and dataset
 MAX_INPUT_LEN = 40
@@ -46,7 +46,8 @@ with open(input_filename, 'r') as i_f:
         with open(output_correct_filename, 'w') as o_c_f:
             for correct_sentence in i_f:
                 correct_sentence = correct_sentence[:-1]
-                print(correct_sentence)
+                # print(correct_sentence)
                 wrong_sentence = add_noise_to_string(correct_sentence, 0.7)
-                o_c_f.write(correct_sentence)
-                o_f.write(wrong_sentence)
+                # print(wrong_sentence)
+                o_c_f.write(correct_sentence + '\n')
+                o_f.write(wrong_sentence + '\n')
