@@ -529,7 +529,7 @@ def parse_args():
                         help='reference file format, if not given try to identify from structure and suffix')
     parser.add_argument('--hyp-format', choices=FileFormat.values,
                         help='hypothesis file format, if not given try to identify from structure and suffix')
-    parser.add_argument('-s', '--suppress', action='append', choices=('none', 'spelling', 'numbers', 'misc', 'all'),
+    parser.add_argument('-s', '--suppress', action='append', default='none', choices=('none', 'spelling', 'numbers', 'misc', 'all'),
                         help='which types of errors to ignore when calculating error rate, default is all')
     parser.add_argument('-o', '--output', action='append', choices=('score', 'full', 'diff', 'breakdown'),
                         help='which kind of output to use, can concatenate more than one (default is score)')
