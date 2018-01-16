@@ -6,6 +6,7 @@ import traceback
 
 ANY_CAPITAL = regex.compile('\p{Lu}')
 CHARS = list(u"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ, .")
+DICT = None
 
 def get_random_word(line, min_size=1):
     words = line.split(u' ')
@@ -64,6 +65,25 @@ def random_typo(line):
     words[rnd1] = u''.join((words[rnd1][:rnd2], rndchr, words[rnd1][rnd2:]))
     return u' '.join(words)
 
+def random_legal_word(line):
+    global DICT
+    if DICT is None:
+        DICT = set(line.strip() for line in open('/usr/share/dict/words'))
+    words, rnd = get_random_word(line, 2)
+    word = words[rnd]
+    possible_errors = DICT & edits1(word, CHARS)
+    if possible_errors:
+        words[rnd] = random.choice(list(possible_errors))
+    return u' '.join(words)
+
+
+def edits1(word, alphabet):
+    s = [(word[:i], word[i:]) for i in range(len(word) + 1)]
+    deletes    = [a + b[1:] for a, b in s if b]
+    transposes = [a + b[1] + b[0] + b[2:] for a, b in s if len(b)>1]
+    replaces   = [a + c + b[1:] for a, b in s for c in alphabet if b]
+    inserts    = [a + c + b     for a, b in s for c in alphabet]
+    return set(deletes + transposes + replaces + inserts)
 
 
 def add_noise_to_string(line):
@@ -80,8 +100,12 @@ def add_noise_to_string(line):
     if random.random() < 0.2:
         line = random_double_char(line)
         no_mistakes = False
+    if max(map(len, line.split(u' '))) >= 2 and random.random() < 0.1:
+        line = random_legal_word(line)
+        no_mistakes = False
     if no_mistakes or random.random() < 0.3:
         line = random_typo(line)
+        no_mistakes = False
     return line
 
 
