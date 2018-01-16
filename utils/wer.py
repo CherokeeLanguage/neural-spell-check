@@ -14,7 +14,7 @@ class TranscriptionErrorType(object):
 class FileFormat(object):
     """Enumeration of trasncription file formats"""
     values = ('tsv', 'parentheses', 'space', 'tsv4')
-    tsv = parentheses = space = tsv4 = values
+    tsv, parentheses, space, tsv4 = values
 
 # These namedtuples are used to pass results around between the functions
 WERResult = collections.namedtuple('WERResult', ['score', 'errors'])
