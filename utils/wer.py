@@ -480,7 +480,7 @@ def _output_results(file_results, outputs):
                     continue
                 print('{} = {}'.format(errtype, sum(errs[errtype].itervalues())))
                 for word, count in errs[errtype].most_common():
-                    print('\t{}: {}'.format(word, count))
+                    print('\t{}: {}'.format(word, count).encode('utf-8'))
                 print()
 
 
