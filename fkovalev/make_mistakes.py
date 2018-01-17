@@ -5,8 +5,48 @@ import random
 import traceback
 
 ANY_CAPITAL = regex.compile('\p{Lu}')
-CHARS = list(u"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ, .")
+CHARS = list(u"abcdefghijklmnopqrstuvwxyz")
 DICT = None
+
+class ReTokenizer(object):
+    ANY_WORD = ur'[\p{L}\p{M}]+'
+    ANY_WORD_RE = regex.compile(ur'(?V1p)' + ANY_WORD + '$')
+    NUMBER = ur'[\p{N}]+'
+    NUMBER_RE = regex.compile(ur'(?V1p)' + NUMBER + '$')
+    SPACE = ur'[\p{Z}]+'
+    REST = ur'[^\p{Z}\p{L}\p{M}\p{N}]'
+    TOKENIZER_RE = regex.compile(ur'(?V1p)' + u'|'.join((ANY_WORD, SPACE, NUMBER, REST)))
+    SPACE_RE = regex.compile(ur'(?V1p)^' + SPACE + '$')
+    JOINER = u'￭'
+    JOINER_RE = regex.compile(ur'(?V1p) ￭ ')
+    
+    @classmethod
+    def tokenize(cls, sentence):
+        tokens = []
+        token_types = []
+        token_is_space = True
+        for w_it in cls.TOKENIZER_RE.finditer(sentence):
+            w = sentence[w_it.start():w_it.end()]
+            cur_token_is_space = True if cls.SPACE_RE.match(w) else False
+            if not token_is_space and not cur_token_is_space:
+                tokens.append(cls.JOINER)
+                token_types.append('J')
+            token_is_space = cur_token_is_space
+            if not cur_token_is_space:
+                tokens.append(w)
+                if cls.ANY_WORD_RE.match(w):
+                    token_types.append('W')
+                elif cls.NUMBER_RE.match(w):
+                    token_types.append('N')
+                else:
+                    token_types.append('R')
+        return tokens, token_types
+
+    @classmethod
+    def detokenize(cls, tokens):
+        words = u' '.join(tokens)
+        return cls.JOINER_RE.sub(u'', words)
+
 
 def get_random_word(line, min_size=1):
     words = line.split(u' ')
@@ -48,19 +88,26 @@ def random_double_char(line):
 def random_typo(line):
     rnd = random.random()
     # random delete
-    if rnd < 0.33:
+    if rnd < 0.25:
         words, rnd1 = get_random_word(line, 1)
         rnd2 = random.randint(0, len(words[rnd1]) - 1)
         words[rnd1] = u''.join((words[rnd1][:rnd2-1], words[rnd1][rnd2:]))
         return u' '.join(words)
     # random swap
-    if max(map(len, line.split(u' '))) >= 2 and rnd < 0.66:
+    if max(map(len, line.split(u' '))) >= 2 and rnd < 0.5:
         words, rnd1 = get_random_word(line, 2)
         rnd2 = random.randint(0, len(words[rnd1]) - 2)
         words[rnd1] = u''.join((words[rnd1][:rnd2-1], words[rnd1][rnd2+1], words[rnd1][rnd2], words[rnd1][rnd2+1:]))
+    # random substitute
+    if rnd < 0.75:
+        rndchr = random.choice(CHARS)
+        words, rnd1 = get_random_word(line, 1)
+        rnd2 = random.randint(0, len(words[rnd1]))
+        words[rnd1] = u''.join((words[rnd1][:rnd2-1], rndchr, words[rnd1][rnd2:]))
+        return u' '.join(words)
     # random add
     words, rnd1 = get_random_word(line, 1)
-    rnd2 = random.randint(0, len(words[rnd1]) - 1)
+    rnd2 = random.randint(0, len(words[rnd1]))
     rndchr = random.choice(CHARS)
     words[rnd1] = u''.join((words[rnd1][:rnd2], rndchr, words[rnd1][rnd2:]))
     return u' '.join(words)
