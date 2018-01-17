@@ -194,7 +194,7 @@ def format_errors(errors):
     return " ".join(ref), " ".join(hyp)
 
 
-def wer(ref_sentence, hyp_sentence, conversions=None, equiv_classes=tuple()):
+def wer(ref_sentence, hyp_sentence, conversions=None, equiv_classes=tuple(), strip_end_punct=False):
     """Calculate Word Error Rate with Levenshtein Distance.
 
     Complexity is O(nm) in time and space, and uses sets of errors so we can analyze the results later.
@@ -211,6 +211,9 @@ def wer(ref_sentence, hyp_sentence, conversions=None, equiv_classes=tuple()):
     T = TranscriptionErrorType # pylint: disable=invalid-name
     ref = [word for word in ref_sentence.strip().lower().split() if word not in IGNORABLES]
     hyp = [word for word in hyp_sentence.strip().lower().split() if word not in IGNORABLES]
+    if strip_end_punct:
+        ref[-1] = ref[-1].lstrip('.,;!?')
+        hyp[-1] = hyp[-1].lstrip('.,;!?')
     if conversions:
         temp = []
         for word in hyp:
@@ -251,7 +254,7 @@ def wer(ref_sentence, hyp_sentence, conversions=None, equiv_classes=tuple()):
     return WERResult(score, err[len(ref)][len(hyp)])
 
 
-def _wer_many(ref_sentences, asr_sentences, conversions=None, equiv_classes=tuple(), nbest=False):
+def _wer_many(ref_sentences, asr_sentences, conversions=None, equiv_classes=tuple(), nbest=False, strip_end_punct=False):
     """Run WER for each pair of sentences, and in addition, calculates the total WER.
 
     Returns the (total WER, list of UtteranceResult). For parameters, see wer() function.
@@ -259,10 +262,10 @@ def _wer_many(ref_sentences, asr_sentences, conversions=None, equiv_classes=tupl
     """
     if nbest:
         # running wer() for each ASR hypothesis, then taking the minimal WER are discard all others
-        single_results = [sorted(wer(ref, asr, conversions, equiv_classes) for asr in asrs)[0]
+        single_results = [sorted(wer(ref, asr, conversions, equiv_classes, strip_end_punct) for asr in asrs)[0]
                           for ref, asrs in zip(ref_sentences, asr_sentences)]
     else:
-        single_results = [wer(ref, asr, conversions, equiv_classes) for ref, asr in zip(ref_sentences, asr_sentences)]
+        single_results = [wer(ref, asr, conversions, equiv_classes, strip_end_punct) for ref, asr in zip(ref_sentences, asr_sentences)]
     # Undoing the division to get the total number of errors
     scores = [result.score for result in single_results]
     total_wer = [(score, len(ref.strip().split())) for score, ref in zip(scores, ref_sentences)]
@@ -341,7 +344,7 @@ def align_transcriptions(map1, map2, partial=False):
 
 
 def get_wer_for_file(ref_file, hyp_file, ref_format=FileFormat.tsv, hyp_format=FileFormat.tsv,
-                     equiv_classes=EQUIV_ALL, nbest=False):
+                     equiv_classes=EQUIV_ALL, nbest=False, strip_end_punct=False):
     """Return WER and detailed changes for hypothesis transcriptions.
 
     ref_file: text file with transcriptions at `ref_format` (either filename or file object)
@@ -354,7 +357,7 @@ def get_wer_for_file(ref_file, hyp_file, ref_format=FileFormat.tsv, hyp_format=F
     asr_map = read_transcriptions(hyp_file, hyp_format, nbest=nbest)
     muuids, ref_sentences, asr_sentences = align_transcriptions(ref_map, asr_map, partial=True)
     total_wer, wer_results = _wer_many(ref_sentences, asr_sentences, conversions=NUMBER_CONVERSIONS, equiv_classes=equiv_classes,
-                                       nbest=nbest)
+                                       nbest=nbest, strip_end_punct=strip_end_punct)
     results = {muuid: UtteranceResult(ref, asr, wer_result)
                for muuid, ref, asr, wer_result in zip(muuids, ref_sentences, asr_sentences, wer_results)}
     return FileResults(total_wer, results)
@@ -510,11 +513,11 @@ def main(args):
     equiv = _get_equiv(args.suppress)
     ref_format = args.ref_format or _guess_format(args.reference.name)
     hyp_format = args.hyp_format or _guess_format(args.hypothesis.name)
-    file_results = get_wer_for_file(args.reference, args.hypothesis, ref_format, hyp_format, equiv, args.nbest)
+    file_results = get_wer_for_file(args.reference, args.hypothesis, ref_format, hyp_format, equiv, args.nbest, args.strip_end_punct)
     if args.hypothesis2:
         args.reference.seek(0)
         hyp2_format = args.hyp2_format or _guess_format(args.hypothesis2.name)
-        file_results2 = get_wer_for_file(args.reference, args.hypothesis2, ref_format, hyp2_format, equiv, args.nbest)
+        file_results2 = get_wer_for_file(args.reference, args.hypothesis2, ref_format, hyp2_format, equiv, args.nbest, args.strip_end_punct)
         _output_3way_results(args.hypothesis.name, file_results, args.hypothesis2.name, file_results2, args.output)
     else:
         _output_results(file_results, args.output)
@@ -538,6 +541,7 @@ def parse_args():
                         dest='hypothesis2')
     parser.add_argument('--3way-format', choices=FileFormat.values, dest='hyp2_format',
                         help='Second hypothesis file format, in case it is supplied')
+    parser.add_argument('--strip-end-punct', action='store_true')
     args = parser.parse_args()
     if not args.output:
         args.output = ['score']
